@@ -1,0 +1,10 @@
+params:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  mode: ${experiment.monitor_mode}
+  factor: 0.5
+  patience: 3
+  min_lr: 1.0e-6
+settings:
+  interval: epoch
+  frequency: 1
+  monitor: ${experiment.monitor}

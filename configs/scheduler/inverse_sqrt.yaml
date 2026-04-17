@@ -1,0 +1,7 @@
+warmup_ratio: 0.1
+step_kwargs: ["num_warmup_steps"]
+params:
+  _target_: transformers.optimization.get_inverse_sqrt_schedule
+settings:
+  interval: step
+  frequency: 1

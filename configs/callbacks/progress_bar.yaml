@@ -1,0 +1,4 @@
+progress_bar:
+  _target_: pytorch_lightning.callbacks.RichProgressBar
+  leave: true
+  refresh_rate: 1

@@ -1,0 +1,7 @@
+warmup_ratio: 0.1
+step_kwargs: ["num_training_steps", "num_warmup_steps"]
+params:
+  _target_: transformers.optimization.get_linear_schedule_with_warmup
+settings:
+  interval: step
+  frequency: 1

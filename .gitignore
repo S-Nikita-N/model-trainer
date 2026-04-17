@@ -1,0 +1,67 @@
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Type checkers & linters
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+
+# Testing
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+
+# IDE & editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project outputs & logs
+outputs/
+multirun/
+multiruns/
+lightning_logs/
+wandb/
+*.log
+checkpoints/
+*.ckpt
+
+# Secrets & env
+.env
+.env.*
+!.env.example
+
+# Datasets and large artefacts
+data/
+*.parquet
+*.pkl
+*.pickle
+*.arrow

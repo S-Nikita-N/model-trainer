@@ -1,0 +1,6 @@
+# Generic classification task (binary by default).
+# Override num_classes for multiclass; positive_class matters only for binary
+# probability-based metrics (AUROC, AveragePrecision, ...).
+_target_: model_trainer.tasks.ClassificationTask
+num_classes: 2
+positive_class: 1

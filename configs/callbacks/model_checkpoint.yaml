@@ -1,0 +1,8 @@
+model_checkpoint:
+  _target_: pytorch_lightning.callbacks.ModelCheckpoint
+  monitor: ${experiment.monitor}
+  mode: ${experiment.monitor_mode}
+  save_top_k: 2
+  save_last: true
+  auto_insert_metric_name: false
+  filename: "best-epoch={epoch}-step={step}-{${experiment.monitor}:.4f}"

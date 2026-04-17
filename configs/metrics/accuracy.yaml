@@ -1,0 +1,6 @@
+accuracy:
+  _target_: model_trainer.tasks.MetricSpec
+  input: preds
+  metric:
+    _target_: torchmetrics.Accuracy
+    task: binary

@@ -1,0 +1,8 @@
+name: train                # run name, used in the output dir and W&B
+seed: 42
+monitor: val_loss          # metric to use for ModelCheckpoint / EarlyStopping
+monitor_mode: min          # min|max, paired with `monitor`
+ckpt_path: null            # path to a Lightning checkpoint to resume / warm-start from
+ckpt_weights_only: true    # true = load weights only (fresh optimizer / epoch / lr)
+test_after_fit: true       # run trainer.test() on the best checkpoint after fit
+log_train_metrics_on_val: true  # flush accumulated train metrics at each val epoch start

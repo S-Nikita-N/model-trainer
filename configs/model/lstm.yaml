@@ -1,0 +1,6 @@
+_target_: model_trainer.backbones.LSTMBackbone
+vocab_size: 30000
+hidden_size: 256
+num_layers: 2
+num_labels: 2
+dropout: 0.2

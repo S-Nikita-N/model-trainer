@@ -1,0 +1,3 @@
+_target_: pytorch_lightning.profilers.AdvancedProfiler
+dirpath: null
+filename: profile

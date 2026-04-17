@@ -1,0 +1,15 @@
+max_epochs: 10
+accelerator: auto
+devices: 1
+precision: 32-true
+gradient_clip_val: 1.0
+accumulate_grad_batches: 1
+detect_anomaly: false
+log_every_n_steps: 50
+val_check_interval: 0.25
+limit_train_batches: null
+limit_val_batches: null
+limit_test_batches: null
+enable_checkpointing: true
+enable_model_summary: true
+num_sanity_val_steps: 2

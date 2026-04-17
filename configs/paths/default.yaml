@@ -1,0 +1,4 @@
+# Группа configs/paths: default. Содержимое подставляется в cfg.paths
+output_dir: ${oc.env:MODEL_TRAINER_OUTPUT,./outputs}
+data_dir: ${oc.env:MODEL_TRAINER_DATA,./data}
+log_dir: ${paths.output_dir}/logs

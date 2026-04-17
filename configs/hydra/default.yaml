@@ -1,0 +1,22 @@
+# Hydra runtime: where runs go, how logs are named.
+# - run.dir      — per-run output directory (rewritten every launch)
+# - sweep.dir    — for `python -m ... --multirun`
+# - job_logging  — where Hydra writes train.log
+# Base directory can be overridden via the MODEL_TRAINER_OUTPUT env var.
+defaults:
+  - override hydra_logging: default
+  - override job_logging: default
+
+run:
+  dir: ${oc.env:MODEL_TRAINER_OUTPUT,outputs}/runs/${experiment.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+sweep:
+  dir: ${oc.env:MODEL_TRAINER_OUTPUT,outputs}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  subdir: ${hydra.job.num}
+
+job_logging:
+  handlers:
+    file:
+      filename: ${hydra.runtime.output_dir}/train.log
+
+job:
+  name: ${experiment.name}

@@ -1,0 +1,7 @@
+# Any HuggingFace sequence-classification model, loaded via
+# AutoModelForSequenceClassification.from_pretrained.
+# Extra kwargs (e.g. classifier_dropout) are forwarded to the model config.
+_target_: transformers.AutoModelForSequenceClassification.from_pretrained
+pretrained_model_name_or_path: null
+local_files_only: false
+num_labels: 2

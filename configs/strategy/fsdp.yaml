@@ -1,0 +1,4 @@
+_target_: pytorch_lightning.strategies.FSDPStrategy
+auto_wrap_policy: null
+cpu_offload: false
+activation_checkpointing: true

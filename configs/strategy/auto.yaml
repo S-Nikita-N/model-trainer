@@ -1,0 +1,3 @@
+# No explicit strategy: let Lightning pick one automatically ("auto").
+# This file is intentionally empty — build_item() falls back to the default
+# ("auto") when no _target_ is present.

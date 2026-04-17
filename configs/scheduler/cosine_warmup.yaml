@@ -1,0 +1,8 @@
+warmup_ratio: 0.1
+step_kwargs: ["num_training_steps", "num_warmup_steps"]
+params:
+  _target_: transformers.optimization.get_cosine_schedule_with_warmup
+  num_cycles: 0.5
+settings:
+  interval: step
+  frequency: 1

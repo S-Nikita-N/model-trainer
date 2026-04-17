@@ -1,0 +1,4 @@
+# Включить профайлер: в defaults укажи profiler: simple
+_target_: pytorch_lightning.profilers.SimpleProfiler
+dirpath: null
+filename: profile

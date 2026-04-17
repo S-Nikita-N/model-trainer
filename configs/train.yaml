@@ -1,0 +1,19 @@
+# Root config. Override any group from the CLI, e.g.:
+#   python -m model_trainer.train data=hf model=transformers_auto_seq_cls scheduler=linear_warmup
+defaults:
+  - _self_
+  - paths: default
+  - experiment: default
+  - data: default
+  - model: lstm
+  - task: classification
+  - loss: crossentropy
+  - optim: adamw
+  - scheduler: cosine_warmup
+  - trainer: default
+  - strategy: auto
+  - callbacks: default
+  - metrics: default
+  - logger: null
+  - profiler: null
+  - hydra: default
