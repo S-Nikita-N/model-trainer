@@ -1,8 +1,0 @@
-# Sensible default metric set for binary classification.
-# Override the whole group with `metrics=<name>` or add individual metrics via
-# `+metrics.my_metric._target_=...`.
-defaults:
-  - accuracy
-  - f1
-  - roc_auc
-  - pr_auc

@@ -2,4 +2,6 @@ _target_: model_trainer.tasks.MetricSpec
 input: preds
 metric:
   _target_: torchmetrics.Recall
-  task: binary
+  task: multiclass
+  num_classes: ${task.num_classes}
+  average: macro

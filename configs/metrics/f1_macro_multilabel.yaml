@@ -2,4 +2,6 @@ _target_: model_trainer.tasks.MetricSpec
 input: preds
 metric:
   _target_: torchmetrics.F1Score
-  task: binary
+  task: multilabel
+  num_labels: ${task.num_labels}
+  average: macro

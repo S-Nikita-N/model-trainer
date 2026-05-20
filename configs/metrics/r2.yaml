@@ -1,5 +1,4 @@
 _target_: model_trainer.tasks.MetricSpec
 input: preds
 metric:
-  _target_: torchmetrics.Precision
-  task: binary
+  _target_: torchmetrics.R2Score

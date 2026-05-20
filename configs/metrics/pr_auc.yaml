@@ -1,6 +1,5 @@
-pr_auc:
-  _target_: model_trainer.tasks.MetricSpec
-  input: probs
-  metric:
-    _target_: torchmetrics.AveragePrecision
-    task: binary
+_target_: model_trainer.tasks.MetricSpec
+input: probs
+metric:
+  _target_: torchmetrics.AveragePrecision
+  task: binary
