@@ -1,0 +1,13 @@
+# Multilabel: independent binary decisions per channel.
+defaults:
+  - /head@head: identity
+  - /loss@loss: bce_with_logits
+  - _self_
+
+_target_: model_trainer.tasks.MultilabelClassificationTask
+_recursive_: false
+
+label_key: labels
+num_labels: 5
+ignore_index: -100
+metrics: {}

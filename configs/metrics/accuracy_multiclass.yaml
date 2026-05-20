@@ -1,7 +1,4 @@
 # Multiclass accuracy. Expects an active ClassificationTask with num_classes set.
-_target_: model_trainer.tasks.MetricSpec
-input: preds
-metric:
-  _target_: torchmetrics.Accuracy
-  task: multiclass
-  num_classes: ${task.num_classes}
+_target_: torchmetrics.Accuracy
+task: multiclass
+num_classes: ${task.num_classes}

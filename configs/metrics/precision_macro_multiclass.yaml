@@ -1,7 +1,4 @@
-_target_: model_trainer.tasks.MetricSpec
-input: preds
-metric:
-  _target_: torchmetrics.Precision
-  task: multiclass
-  num_classes: ${task.num_classes}
-  average: macro
+_target_: torchmetrics.Precision
+task: multiclass
+num_classes: ${task.num_classes}
+average: macro

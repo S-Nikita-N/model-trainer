@@ -1,5 +1,9 @@
-# Root config. Override any group from the CLI, e.g.:
-#   python -m model_trainer.train data=hf model=transformers_auto_seq_cls scheduler=linear_warmup
+# Root config for training. Override any group from the CLI, e.g.:
+#   python -m model_trainer.train data=ragbench model=hf_encoder task=multitask
+#
+# Each top-level group is composable independently. The `task` config holds
+# its own `head`, `loss`, and (initially empty) `metrics` dict — populate
+# metrics via `+metrics@task.metrics.<name>=<stem>` on the CLI.
 defaults:
   - _self_
   - paths: default
@@ -7,13 +11,11 @@ defaults:
   - data: default
   - model: lstm
   - task: classification
-  - loss: crossentropy
   - optim: adamw
   - scheduler: cosine_warmup
   - trainer: default
   - strategy: auto
   - callbacks: default
-  - metrics: default
-  - logger: null
+  - logger: csv
   - profiler: null
   - hydra: default

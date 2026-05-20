@@ -1,1 +1,10 @@
+defaults:
+  - /head@head: identity
+  - /loss@loss: mse
+  - _self_
+
 _target_: model_trainer.tasks.RegressionTask
+_recursive_: false
+
+label_key: labels
+metrics: {}

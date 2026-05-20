@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "Hydra + PyTorch Lightning training harness: clone, configure, train."
 readme = "README.md"
 license = "Apache-2.0"
-authors = ["Nikolay Sviridov <nikswirlo@gmail.com>"]
+authors = ["Nikita Sviridov <nikswirlo@gmail.com>"]
 keywords = ["hydra", "pytorch-lightning", "training", "deep-learning", "nlp"]
 classifiers = [
     "Development Status :: 4 - Beta",

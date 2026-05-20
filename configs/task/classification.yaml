@@ -1,6 +1,15 @@
-# Generic classification task (binary by default).
-# Override num_classes for multiclass; positive_class matters only for binary
-# probability-based metrics (AUROC, AveragePrecision, ...).
+# Softmax-based classification (binary by default; bump num_classes for
+# multiclass).
+defaults:
+  - /head@head: identity
+  - /loss@loss: crossentropy
+  - _self_
+
 _target_: model_trainer.tasks.ClassificationTask
+_recursive_: false
+
 num_classes: 2
 positive_class: 1
+label_key: labels
+ignore_index: -100
+metrics: {}

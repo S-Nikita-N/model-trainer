@@ -1,13 +1,13 @@
 """Entry point: Hydra assembles the config, we build DataModule + Model + Trainer.
 
-Run from the repo root::
+Run from the repo root:
 
     python -m model_trainer.train
-    python -m model_trainer.train model=transformers_auto_seq_cls data=hf logger=wandb
+    python -m model_trainer.train model=hf_encoder data=ragbench task=multitask
     python -m model_trainer.train trainer.max_epochs=1 trainer.limit_train_batches=2
 
-To plug your own code in: implement a DataModule and / or a backbone, point
-``_target_`` at them in a YAML file under ``configs/``, and override on the CLI.
+To plug your own code in: implement a DataModule / backbone / head / Task,
+point ``_target_`` at them in a YAML under ``configs/``, override on the CLI.
 """
 
 from __future__ import annotations
@@ -21,36 +21,17 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 
 from model_trainer.hydra_builder import build_item, build_items_list
+from model_trainer.lit_module import LitModule
 from model_trainer.utils import set_seed
 
 log = logging.getLogger(__name__)
 
 
 def _get_config_path() -> str:
-    """Path to configs/ relative to this file."""
     return str(Path(__file__).resolve().parents[2] / "configs")
 
 
-def _require_non_empty_metrics(cfg: DictConfig) -> None:
-    """Fail fast if the user did not compose any metrics (``metrics: {}`` alone is invalid)."""
-    metrics = cfg.get("metrics")
-    if not OmegaConf.is_config(metrics) or len(metrics) == 0:
-        raise ValueError(
-            "cfg.metrics is empty. Add at least one metric from configs/metrics/, e.g. "
-            "'+metrics@metrics.f1=f1' '+metrics@metrics.roc_auc=roc_auc'."
-        )
-    for key in metrics:
-        node = metrics[key]
-        if OmegaConf.is_config(node) and node.get("_target_"):
-            return
-    raise ValueError(
-        "cfg.metrics must contain at least one node with _target_ (typically "
-        "model_trainer.tasks.MetricSpec). See configs/metrics/*.yaml."
-    )
-
-
 def _load_weights_only(model: pl.LightningModule, ckpt_path: str) -> None:
-    """Load weights from a Lightning checkpoint without restoring optimizer / epoch."""
     ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     state = ckpt.get("state_dict", ckpt)
     model.load_state_dict(state, strict=True)
@@ -58,7 +39,6 @@ def _load_weights_only(model: pl.LightningModule, ckpt_path: str) -> None:
 
 @hydra.main(version_base="1.3", config_path=_get_config_path(), config_name="train")
 def main(cfg: DictConfig) -> None:
-    _require_non_empty_metrics(cfg)
     log.info("Resolved config:\n%s", OmegaConf.to_yaml(cfg, resolve=True))
 
     seed = cfg.experiment.get("seed")
@@ -69,8 +49,7 @@ def main(cfg: DictConfig) -> None:
     val_set_names = tuple(getattr(datamodule, "val_set_names", ("val",)))
     test_set_names = tuple(getattr(datamodule, "test_set_names", ()))
 
-    model = hydra.utils.instantiate(
-        cfg.lit_module,
+    model = LitModule(
         cfg=cfg,
         val_set_names=val_set_names,
         test_set_names=test_set_names,

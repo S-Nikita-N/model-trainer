@@ -1,0 +1,12 @@
+# Per (response_i, context_j) head: pools both sides by sentence offsets,
+# builds NLI-style pair features, MLP outputs ``num_outputs`` channels
+# (default 2 → support / contradict evidence).
+_target_: model_trainer.heads.PairwiseEvidenceHead
+response_offsets_key: response_offsets
+response_mask_key: response_mask
+context_offsets_key: context_offsets
+context_mask_key: context_mask
+hidden_dim: 256
+num_outputs: 2
+dropout: 0.1
+backbone_input_key: hidden_states

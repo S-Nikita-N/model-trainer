@@ -1,3 +1,0 @@
-_target_: model_trainer.tasks.MultilabelClassificationTask
-num_labels: 5
-threshold: 0.5

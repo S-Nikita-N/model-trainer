@@ -1,0 +1,8 @@
+# Pure HuggingFace encoder (no classification head). Returns
+# ``{hidden_states, attention_mask}`` — pair with a head from
+# ``configs/head/`` that pools tokens (``sentence_mlp``, ``pairwise_evidence``).
+_target_: model_trainer.backbones.HFEncoder
+encoder_name: answerdotai/ModernBERT-base
+local_files_only: false
+trust_remote_code: false
+input_keys: [input_ids, attention_mask]

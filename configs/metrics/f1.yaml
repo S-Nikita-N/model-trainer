@@ -1,5 +1,2 @@
-_target_: model_trainer.tasks.MetricSpec
-input: preds
-metric:
-  _target_: torchmetrics.F1Score
-  task: binary
+_target_: torchmetrics.F1Score
+task: binary

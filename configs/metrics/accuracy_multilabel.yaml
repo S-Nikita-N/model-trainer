@@ -1,4 +1,4 @@
-_target_: torchmetrics.Recall
+_target_: torchmetrics.Accuracy
 task: multilabel
 num_labels: ${task.num_labels}
 average: macro

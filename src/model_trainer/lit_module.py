@@ -28,8 +28,7 @@ import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 
-from model_trainer.hydra_builder import build_item, build_items_dict
-from model_trainer.tasks import ClassificationTask, Task
+from model_trainer.hydra_builder import build_item
 
 
 class LitModule(pl.LightningModule):
@@ -40,7 +39,6 @@ class LitModule(pl.LightningModule):
         test_set_names: Sequence[str] = (),
     ) -> None:
         super().__init__()
-
         self.cfg = cfg
         self.backbone: nn.Module = build_item(cfg.model)
         self.criterion: nn.Module = build_item(cfg.loss)

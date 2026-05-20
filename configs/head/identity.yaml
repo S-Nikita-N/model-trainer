@@ -1,0 +1,5 @@
+# Pass-through: returns backbone_output[backbone_input_key] directly. Use
+# this with backbones that already produce logits (LSTMBackbone,
+# AutoModelForSequenceClassification).
+_target_: model_trainer.heads.IdentityHead
+backbone_input_key: logits

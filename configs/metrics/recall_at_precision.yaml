@@ -1,5 +1,2 @@
-_target_: model_trainer.tasks.MetricSpec
-input: probs
-metric:
-  _target_: torchmetrics.classification.BinaryRecallAtFixedPrecision
-  min_precision: 0.90
+_target_: torchmetrics.classification.BinaryRecallAtFixedPrecision
+min_precision: 0.9

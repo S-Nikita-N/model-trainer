@@ -1,4 +1,0 @@
-defaults:
-  - classification
-
-num_classes: 10

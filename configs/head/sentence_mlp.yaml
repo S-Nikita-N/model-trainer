@@ -1,0 +1,13 @@
+# Generic sentence-level head: mean-pool tokens of each sentence by
+# (start, end) offsets, then a 2-layer MLP. Works for any role (context,
+# response, raw single-text sentences) — override ``offsets_key`` /
+# ``mask_key`` to point at the relevant batch keys (e.g. ``response_*``
+# for stage A of hallucination detection, ``context_*`` for the other side,
+# or ``sentence_*`` for generic sentence tagging).
+_target_: model_trainer.heads.SentenceMLPHead
+offsets_key: sentence_offsets
+mask_key: sentence_mask
+hidden_dim: 256
+num_outputs: 1
+dropout: 0.1
+backbone_input_key: hidden_states

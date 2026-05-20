@@ -1,0 +1,8 @@
+# Composes multiple child tasks over one shared backbone. Children own their
+# head / loss / metrics; this config only holds the dict and per-task weights.
+# See README for end-to-end run examples.
+_target_: model_trainer.tasks.MultiTask
+_recursive_: false
+
+tasks: {}
+weights: {}

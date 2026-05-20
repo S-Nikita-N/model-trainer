@@ -1,7 +1,4 @@
-_target_: model_trainer.tasks.MetricSpec
-input: probs
-metric:
-  _target_: torchmetrics.AUROC
-  task: multilabel
-  num_labels: ${task.num_labels}
-  average: macro
+_target_: torchmetrics.AUROC
+task: multilabel
+num_labels: ${task.num_labels}
+average: macro
