@@ -144,7 +144,8 @@ class LitModule(pl.LightningModule):
         metrics = self._get_metric_group(prefix, set_name)
         for spec in metrics.values():
             value = self.task.prepare_metric_input(logits, spec.input)
-            spec.update(value, labels)
+            target = self.task.prepare_metric_target(labels, spec.input)
+            spec.update(value, target)
 
     def _log_metrics(self, prefix: str, set_name: str | None = None) -> None:
         metrics = self._get_metric_group(prefix, set_name)

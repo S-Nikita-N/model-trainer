@@ -8,9 +8,9 @@ defaults:
   - override job_logging: default
 
 run:
-  dir: ${oc.env:MODEL_TRAINER_OUTPUT,outputs}/runs/${experiment.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.output_dir}/runs/${experiment.name}/${now:%Y-%m-%d}_${now:%H-%M-%S}
 sweep:
-  dir: ${oc.env:MODEL_TRAINER_OUTPUT,outputs}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
+  dir: ${paths.output_dir}/multiruns/${now:%Y-%m-%d}_${now:%H-%M-%S}
   subdir: ${hydra.job.num}
 
 job_logging:
@@ -20,3 +20,6 @@ job_logging:
 
 job:
   name: ${experiment.name}
+  env_set:
+    HTTP_PROXY: ${oc.env:HTTP_PROXY,''}
+    HTTPS_PROXY: ${oc.env:HTTPS_PROXY,''}

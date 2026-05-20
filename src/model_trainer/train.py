@@ -21,7 +21,6 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 
 from model_trainer.hydra_builder import build_item, build_items_list
-from model_trainer.lit_module import LitModule
 from model_trainer.utils import set_seed
 
 log = logging.getLogger(__name__)
@@ -30,6 +29,24 @@ log = logging.getLogger(__name__)
 def _get_config_path() -> str:
     """Path to configs/ relative to this file."""
     return str(Path(__file__).resolve().parents[2] / "configs")
+
+
+def _require_non_empty_metrics(cfg: DictConfig) -> None:
+    """Fail fast if the user did not compose any metrics (``metrics: {}`` alone is invalid)."""
+    metrics = cfg.get("metrics")
+    if not OmegaConf.is_config(metrics) or len(metrics) == 0:
+        raise ValueError(
+            "cfg.metrics is empty. Add at least one metric from configs/metrics/, e.g. "
+            "'+metrics@metrics.f1=f1' '+metrics@metrics.roc_auc=roc_auc'."
+        )
+    for key in metrics:
+        node = metrics[key]
+        if OmegaConf.is_config(node) and node.get("_target_"):
+            return
+    raise ValueError(
+        "cfg.metrics must contain at least one node with _target_ (typically "
+        "model_trainer.tasks.MetricSpec). See configs/metrics/*.yaml."
+    )
 
 
 def _load_weights_only(model: pl.LightningModule, ckpt_path: str) -> None:
@@ -41,6 +58,7 @@ def _load_weights_only(model: pl.LightningModule, ckpt_path: str) -> None:
 
 @hydra.main(version_base="1.3", config_path=_get_config_path(), config_name="train")
 def main(cfg: DictConfig) -> None:
+    _require_non_empty_metrics(cfg)
     log.info("Resolved config:\n%s", OmegaConf.to_yaml(cfg, resolve=True))
 
     seed = cfg.experiment.get("seed")
@@ -51,7 +69,12 @@ def main(cfg: DictConfig) -> None:
     val_set_names = tuple(getattr(datamodule, "val_set_names", ("val",)))
     test_set_names = tuple(getattr(datamodule, "test_set_names", ()))
 
-    model = LitModule(cfg=cfg, val_set_names=val_set_names, test_set_names=test_set_names)
+    model = hydra.utils.instantiate(
+        cfg.lit_module,
+        cfg=cfg,
+        val_set_names=val_set_names,
+        test_set_names=test_set_names,
+    )
 
     ckpt_path = cfg.experiment.get("ckpt_path")
     ckpt_weights_only = bool(cfg.experiment.get("ckpt_weights_only", True))
@@ -62,7 +85,7 @@ def main(cfg: DictConfig) -> None:
     trainer = pl.Trainer(
         **cfg.trainer,
         strategy=build_item(cfg.get("strategy"), default="auto"),
-        logger=build_item(cfg.get("logger")),
+        logger=build_item(cfg.get("logger"), default=False),
         callbacks=build_items_list(cfg.get("callbacks"), default=[]),
         profiler=build_item(cfg.get("profiler")),
     )

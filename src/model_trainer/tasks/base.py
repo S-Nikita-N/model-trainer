@@ -26,6 +26,15 @@ class Task:
         """
         raise NotImplementedError
 
+    def prepare_metric_target(self, labels: torch.Tensor, kind: str) -> torch.Tensor:
+        """Return the tensor to pass as ``target`` to a metric with ``input=<kind>``.
+
+        Default: identity. Override when loss and metrics expect different
+        dtypes (e.g. multilabel ``BCEWithLogitsLoss`` needs ``float``, while
+        torchmetrics expects ``long``).
+        """
+        return labels
+
     def format_output(self, output: Any) -> torch.Tensor:
         """Extract logits (or the value a criterion expects) from a backbone output.
 
