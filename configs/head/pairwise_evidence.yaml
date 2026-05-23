@@ -2,10 +2,8 @@
 # builds NLI-style pair features, MLP outputs ``num_outputs`` channels
 # (default 2 → support / contradict evidence).
 _target_: model_trainer.heads.PairwiseEvidenceHead
-response_offsets_key: response_offsets
-response_mask_key: response_mask
-context_offsets_key: context_offsets
-context_mask_key: context_mask
+response_offsets_key: response_fact_offsets
+context_offsets_key: context_fact_offsets
 hidden_dim: 256
 num_outputs: 2
 dropout: 0.1
