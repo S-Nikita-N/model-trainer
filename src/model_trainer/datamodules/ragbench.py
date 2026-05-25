@@ -11,10 +11,14 @@
         "contradict_labels":     list[list[int]],           # M × N raw values
     }
 
-A pickle file is a ``list[dict]`` of such examples. ``None`` in a fact-label
-list means "this sentence has no annotation in the source labeling dict" —
-such sentences are simply **excluded** from the offsets we produce (no -100
-sentinel needed in the model's view).
+A pickle file may be either a ``list[dict]`` of such examples or a
+``pandas.DataFrame`` with the same columns. Extra columns / keys
+(``id``, ``config``, ``split``, model name, ...) are simply ignored by the
+DataModule but stay accessible for downstream analysis on the same file.
+
+``None`` in a fact-label list means "this sentence has no annotation in the
+source labeling dict" — such sentences are simply **excluded** from the
+offsets we produce (no -100 sentinel needed in the model's view).
 
 The raw ``support_labels`` / ``contradict_labels`` matrices stay full-size
 (M × N) and ``_build_one`` extracts the factual M_fact × N_fact submatrix
@@ -138,11 +142,27 @@ class RAGBenchDataModule(pl.LightningDataModule):
         self._test_datasets: list[tuple[str, RAGBenchDataset]] = []
 
     def _load_pickle(self, path: str) -> list[dict[str, Any]]:
+        """Load a pickle of either ``list[dict]`` or ``pandas.DataFrame`` shape.
+
+        DataFrames are converted row-wise to a list of dicts via ``to_dict("records")``;
+        unused columns (e.g. ``id``, ``config``, ``split`` — anything not pulled
+        out by ``_unpack_example``) are simply ignored, which makes the same
+        file usable for both training and downstream analysis.
+        """
         with Path(path).open("rb") as f:
             data = pickle.load(f)
-        if not isinstance(data, list):
-            raise TypeError(f"{path}: expected list[dict], got {type(data).__name__}")
-        return data
+        # Lazy import to avoid a hard pandas dependency for list-of-dict users.
+        try:
+            import pandas as pd
+        except ImportError:
+            pd = None
+        if pd is not None and isinstance(data, pd.DataFrame):
+            return data.to_dict("records")
+        if isinstance(data, list):
+            return data
+        raise TypeError(
+            f"{path}: expected list[dict] or pandas.DataFrame, got {type(data).__name__}"
+        )
 
     def _build_one(self, raw: dict[str, Any]) -> dict[str, Any]:
         ex = _unpack_example(raw)
