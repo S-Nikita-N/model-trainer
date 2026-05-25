@@ -1,0 +1,4 @@
+# Default data group: dummy data so `python -m model_trainer.train` runs
+# end-to-end with no external files.
+defaults:
+  - dummy

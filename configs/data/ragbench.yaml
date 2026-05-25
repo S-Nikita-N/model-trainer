@@ -1,0 +1,27 @@
+# Sentence-level RAGBench-style data: pickle files, per-sentence tokenization,
+# per-task val/test splits.
+#
+# Required overrides:
+#   data.train_path=/path/to/train.pkl
+#   '+data.valid_sets.fact=/path/to/val_fact.pkl'
+#   '+data.valid_sets.evidence=/path/to/val_evidence.pkl'
+#   '+data.test_sets.fact=/path/to/test_fact.pkl'
+#   '+data.test_sets.evidence=/path/to/test_evidence.pkl'
+_target_: model_trainer.datamodules.RAGBenchDataModule
+_recursive_: false
+
+tokenizer: ${model.encoder_name}     # reuse the backbone's encoder tokenizer
+train_path: null
+valid_sets: {}
+test_sets: {}
+
+max_length: 512
+batch_size: 4
+num_workers: 0
+pin_memory: false
+drop_last: true
+local_files_only: false
+
+max_train_samples: null
+max_val_samples: null
+max_test_samples: null

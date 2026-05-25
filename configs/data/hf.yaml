@@ -1,0 +1,37 @@
+# HuggingFace-datasets backed DataModule.
+# Provide paths via CLI:
+#   +data.data_files.train_sets.train=/path/to/train.parquet
+#   +data.data_files.valid_sets.val=/path/to/val.parquet
+#   +data.data_files.test_sets.test=/path/to/test.parquet
+_target_: model_trainer.datamodules.HFDataModule
+_recursive_: false
+
+tokenizer: null                  # required: HF hub name or local path
+loader: null                     # null = auto-detect from extension
+data_files:
+  train_sets: {}                 # 1..N files, concatenated into a single train split
+  valid_sets: {}                 # 0..N named validation sets
+  test_sets: {}                  # 0..N named test sets
+
+text_column: text
+label_column: label
+label_map: null                  # optional str -> int map
+
+max_length: 512
+padding: false                   # pad via collator (dynamic padding) by default
+truncation: true
+truncation_side: right
+
+collator:
+  _target_: transformers.DataCollatorWithPadding
+  pad_to_multiple_of: 8
+
+batch_size: 16
+num_workers: 2
+pin_memory: true
+drop_last: true
+
+max_train_samples: null
+max_val_samples: null
+max_test_samples: null
+load_from_cache_file: true
