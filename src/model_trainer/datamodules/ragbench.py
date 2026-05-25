@@ -142,13 +142,6 @@ class RAGBenchDataModule(pl.LightningDataModule):
         self._test_datasets: list[tuple[str, RAGBenchDataset]] = []
 
     def _load_pickle(self, path: str) -> list[dict[str, Any]]:
-        """Load a pickle of either ``list[dict]`` or ``pandas.DataFrame`` shape.
-
-        DataFrames are converted row-wise to a list of dicts via ``to_dict("records")``;
-        unused columns (e.g. ``id``, ``config``, ``split`` — anything not pulled
-        out by ``_unpack_example``) are simply ignored, which makes the same
-        file usable for both training and downstream analysis.
-        """
         with Path(path).open("rb") as f:
             data = pickle.load(f)
         # Lazy import to avoid a hard pandas dependency for list-of-dict users.
