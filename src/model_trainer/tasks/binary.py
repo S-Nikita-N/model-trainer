@@ -1,11 +1,11 @@
-"""Multilabel classification: each output channel is an independent binary
-decision with its own BCE loss.
+"""Single-logit binary classification with BCE.
 
-Metric input is fed element-wise (after flattening + ignore-mask) so that a
-``torchmetrics.<metric>(task="binary")`` metric computes a micro-style score
-over all positions × channels. If you want per-label aggregation, configure
-a ``task="multilabel"`` metric explicitly and override ``update_metrics``
-downstream (TODO: per-label preserved shape).
+Use this when the head produces an unnormalized score (``(..., 1)`` or
+``(...,)``) and you want ``BCEWithLogitsLoss``. Metric input = ``sigmoid``.
+
+Element-wise ``ignore_index`` masking is applied to both loss and metrics so
+the same task works on padded structured batches (per-sentence, per-pair, …)
+without polluting either with ``-100`` positions.
 """
 
 from __future__ import annotations
@@ -18,19 +18,23 @@ import torch.nn as nn
 from model_trainer.tasks.base import Task
 
 
-class MultilabelClassificationTask(Task):
+class BinaryClassificationTask(Task):
     def __init__(
         self,
         head: nn.Module,
         loss: nn.Module,
         label_key: str = "labels",
         metrics: Any = None,
-        num_labels: int | None = None,
         ignore_index: int | None = -100,
     ) -> None:
         super().__init__(head=head, loss=loss, label_key=label_key, metrics=metrics)
-        self.num_labels = num_labels
         self.ignore_index = ignore_index
+
+    @staticmethod
+    def _squeeze_singleton(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        if logits.ndim == labels.ndim + 1 and logits.shape[-1] == 1:
+            return logits.squeeze(-1)
+        return logits
 
     def _mask(self, logits: torch.Tensor, labels: torch.Tensor):
         if self.ignore_index is None:
@@ -41,6 +45,7 @@ class MultilabelClassificationTask(Task):
         return logits[keep], labels[keep]
 
     def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        logits = self._squeeze_singleton(logits, labels)
         filtered = self._mask(logits, labels)
         if filtered is None:
             return torch.zeros((), device=logits.device, dtype=logits.dtype)
@@ -55,6 +60,7 @@ class MultilabelClassificationTask(Task):
     ) -> None:
         logits = info["logits"]
         labels = batch[self.label_key]
+        logits = self._squeeze_singleton(logits, labels)
         filtered = self._mask(logits, labels)
         if filtered is None:
             return
@@ -64,4 +70,7 @@ class MultilabelClassificationTask(Task):
             m.update(x, flabels)
 
     def postprocess_for_metrics(self, logits: torch.Tensor) -> torch.Tensor:
+        # Kept for symmetry; ``update_metrics`` does its own masking + sigmoid.
+        if logits.ndim > 1 and logits.shape[-1] == 1:
+            logits = logits.squeeze(-1)
         return torch.sigmoid(logits)

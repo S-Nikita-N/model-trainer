@@ -1,13 +1,8 @@
-"""Regression task adapter.
+"""Regression task.
 
-``logits`` are the raw model outputs. A trailing singleton dimension (common
-when the head's ``num_labels=1``) is squeezed in :meth:`format_output` so that
-both the loss (e.g. ``MSELoss``) and regression metrics (``MAE``, ``R2``) see
-a 1-D tensor of shape ``(batch,)`` without any extra bookkeeping.
-
-Only ``preds`` and ``logits`` metric kinds are defined; ``probs`` has no
-meaning for regression and will raise rather than silently return something
-weird.
+Identity post-process — loss (``MSE`` / ``L1``) and metrics (``MAE``,
+``R2``, ...) all take raw outputs directly. Trailing singleton is squeezed
+in ``compute_loss`` / ``postprocess`` to keep ``(B,)`` aligned shapes.
 """
 
 from __future__ import annotations
@@ -15,20 +10,31 @@ from __future__ import annotations
 from typing import Any
 
 import torch
+import torch.nn as nn
 
 from model_trainer.tasks.base import Task
 
 
 class RegressionTask(Task):
-    def format_output(self, output: Any) -> torch.Tensor:
-        logits = super().format_output(output)
-        if logits.ndim > 1 and logits.shape[-1] == 1:
+    def __init__(
+        self,
+        head: nn.Module,
+        loss: nn.Module,
+        label_key: str = "labels",
+        metrics: Any = None,
+    ) -> None:
+        super().__init__(head=head, loss=loss, label_key=label_key, metrics=metrics)
+
+    @staticmethod
+    def _maybe_squeeze(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        if logits.ndim == labels.ndim + 1 and logits.shape[-1] == 1:
             return logits.squeeze(-1)
         return logits
 
-    def prepare_metric_input(self, logits: torch.Tensor, kind: str) -> torch.Tensor:
-        if kind in ("preds", "logits"):
-            return logits
-        raise ValueError(
-            f"RegressionTask does not define metric input {kind!r}. Use 'preds' or 'logits'."
-        )
+    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        return self.loss(self._maybe_squeeze(logits, labels), labels.to(logits.dtype))
+
+    def postprocess_for_metrics(self, logits: torch.Tensor) -> torch.Tensor:
+        if logits.ndim > 1 and logits.shape[-1] == 1:
+            return logits.squeeze(-1)
+        return logits
