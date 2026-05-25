@@ -66,16 +66,6 @@ class LitModule(pl.LightningModule):
             cfg.get("experiment", {}).get("log_train_metrics_on_val", True)
         )
 
-    def _backbone_inputs(self, batch: dict[str, Any]) -> dict[str, Any]:
-        try:
-            return {k: batch[k] for k in self.backbone.input_keys}
-        except KeyError as e:
-            raise KeyError(
-                f"Backbone {type(self.backbone).__name__} expects batch key {e.args[0]!r} "
-                f"(input_keys={list(self.backbone.input_keys)}); "
-                f"batch has keys: {sorted(batch.keys())}."
-            ) from None
-
     @staticmethod
     def _log_prefix(prefix: str, set_name: str | None) -> str:
         if set_name is None or set_name == prefix:
@@ -88,7 +78,8 @@ class LitModule(pl.LightningModule):
         prefix: str,
         set_name: str | None = None,
     ) -> torch.Tensor:
-        backbone_output = self.backbone(**self._backbone_inputs(batch))
+        backbone_inputs = {k: batch[k] for k in self.backbone.input_keys}
+        backbone_output = self.backbone(**backbone_inputs)
         loss, info = self.task(backbone_output, batch)
 
         log_prefix = self._log_prefix(prefix, set_name)
@@ -115,7 +106,11 @@ class LitModule(pl.LightningModule):
         self.task.update_metrics(info, batch, group)
         return loss
 
-    def training_step(self, batch: dict[str, Any], batch_idx: int) -> torch.Tensor:
+    def training_step(
+        self,
+        batch: dict[str, Any],
+        batch_idx: int,
+    ) -> torch.Tensor:
         return self._step(batch, "train")
 
     def validation_step(
@@ -202,7 +197,14 @@ class LitModule(pl.LightningModule):
         scheduler = build_item(params, default=None, **extra)
         if scheduler is None:
             return optimizer
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, **settings}}
+            
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                **settings,
+            },
+        }
 
     def _get_total_steps(self) -> int:
         if self.trainer is None:
