@@ -111,6 +111,9 @@ class Task(nn.Module):
             # Some torchmetrics return (value, threshold) — log the value only.
             if isinstance(value, (tuple, list)):
                 value = value[0]
+            # Multilabel macro metrics return per-label tensor — average to scalar.
+            if isinstance(value, torch.Tensor) and value.numel() > 1:
+                value = value.mean()
             log_fn(
                 name=f"{log_prefix}_{name}",
                 value=value,

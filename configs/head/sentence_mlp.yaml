@@ -3,7 +3,8 @@
 # response, raw single-text sentences)
 _target_: model_trainer.heads.SentenceMLPHead
 offsets_key: sentence_offsets
-hidden_dim: 256
+backbone_output_key: hidden_states
+backbone_output_dim: null
+hidden_dim: null
 num_outputs: 1
 dropout: 0.1
-backbone_input_key: hidden_states

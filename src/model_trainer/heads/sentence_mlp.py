@@ -28,15 +28,16 @@ class SentenceMLPHead(Head):
         num_outputs: int = 1,
         dropout: float = 0.1,
         offsets_key: str = "sentence_offsets",
-        backbone_input_key: str = "hidden_states",
+        backbone_output_key: str = "hidden_states",
+        backbone_output_dim: int | None = None,
     ) -> None:
         super().__init__(
             input_keys=[offsets_key],
-            backbone_input_key=backbone_input_key,
+            backbone_output_key=backbone_output_key,
         )
         self.offsets_key = offsets_key
         self.mlp = nn.Sequential(
-            nn.LazyLinear(hidden_dim),
+            nn.Linear(backbone_output_dim, hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, num_outputs),
@@ -57,7 +58,7 @@ class SentenceMLPHead(Head):
         return torch.einsum("bst,btd->bsd", weights, hidden) / counts
 
     def forward(self, backbone_output: dict[str, Any], **head_inputs: Any) -> torch.Tensor:
-        h = backbone_output[self.backbone_input_key]
+        h = backbone_output[self.backbone_output_key]
         offsets = head_inputs[self.offsets_key]
         s = self.mean_pool_by_offsets(h, offsets)
         return self.mlp(s)
