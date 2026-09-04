@@ -13,10 +13,10 @@ train. **Configs first, code second.**
 
 ```bash
 git clone <this repo> && cd model-trainer
-poetry install
+uv sync
 
 # Smoke-run (dummy data + LSTM). Metrics are mandatory — at least one ``+metrics@...``:
-poetry run python -m model_trainer.train \
+uv run python -m model_trainer.train \
   '+metrics@metrics.f1=f1' '+metrics@metrics.roc_auc=roc_auc'
 ```
 
@@ -25,7 +25,7 @@ metrics, task adapter — is swappable from the CLI without touching Python.
 
 ```bash
 # Train a HuggingFace seq-cls model on your data, with wandb logging:
-poetry run python -m model_trainer.train \
+uv run python -m model_trainer.train \
   data=hf \
   data.tokenizer=bert-base-uncased \
   '+data.data_files.train_sets.train=/path/train.parquet' \
@@ -39,12 +39,12 @@ poetry run python -m model_trainer.train \
   logger=wandb
 
 # Quick dev loop: 1 epoch, 2 train batches, 1 val batch
-poetry run python -m model_trainer.train \
+uv run python -m model_trainer.train \
   '+metrics@metrics.f1=f1' '+metrics@metrics.roc_auc=roc_auc' \
   trainer.max_epochs=1 trainer.limit_train_batches=2 trainer.limit_val_batches=1
 
 # Multi-GPU DDP, bf16
-poetry run python -m model_trainer.train \
+uv run python -m model_trainer.train \
   trainer.accelerator=gpu trainer.devices=4 strategy=ddp trainer.precision=bf16-mixed
 ```
 
@@ -74,7 +74,7 @@ child owns its own head, loss and metrics. Children are added via Hydra's
 # Sentence-level hallucination detection on RAGBench-style pickles:
 # per-response-sentence binary "contains a fact" (head A) + per-pair
 # multilabel "support / contradict" evidence (head B), joint loss.
-poetry run python -m model_trainer.train \
+uv run python -m model_trainer.train \
   data=ragbench model=hf_encoder task=multitask \
   data.train_path=/path/train.pkl \
   '+data.valid_sets.fact=/path/val_fact.pkl' \
@@ -275,14 +275,14 @@ are all instantiated via `_target_`, so swapping to a custom backbone is a
 one-line YAML change:
 
 ```bash
-poetry run python -m model_trainer.score \
+uv run python -m model_trainer.score \
   checkpoint=outputs/runs/.../checkpoints/best.ckpt \
   model.pretrained_model_name_or_path=bert-base-uncased \
   input_path=/path/to/data.parquet \
   output_path=/path/to/scored.parquet
 
 # Multiclass: also dump the full probability matrix
-poetry run python -m model_trainer.score \
+uv run python -m model_trainer.score \
   checkpoint=... model.pretrained_model_name_or_path=bert-base-uncased \
   model.num_labels=5 \
   input_path=... output_path=... probs_column=all_probs
@@ -291,11 +291,11 @@ poetry run python -m model_trainer.score \
 ## Development
 
 ```bash
-poetry install --with dev
-poetry run pytest          # unit + parametrized end-to-end smoke tests
-poetry run ruff check .    # lint
-poetry run ruff format .   # auto-format
-poetry run pre-commit install
+uv sync --all-extras
+uv run pytest          # unit + parametrized end-to-end smoke tests
+uv run ruff check .    # lint
+uv run ruff format .   # auto-format
+uv run pre-commit install
 ```
 
 CI (GitHub Actions) runs the lint + format check + test suite on every push
