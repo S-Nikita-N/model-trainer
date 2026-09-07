@@ -33,6 +33,10 @@ class HFEncoder(nn.Module):
             local_files_only=local_files_only,
             trust_remote_code=trust_remote_code,
         )
+        # ``from_pretrained`` hands the model back in eval mode, and Lightning
+        # only calls ``.train()`` when *returning* from a validation loop — so
+        # without this the first training epoch runs with dropout disabled.
+        self.encoder.train()
         self.input_keys: list[str] = list(input_keys)
 
     def forward(

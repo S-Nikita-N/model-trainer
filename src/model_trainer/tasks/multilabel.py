@@ -76,16 +76,16 @@ class MultilabelClassificationTask(Task):
         for m in group.values():
             if getattr(m, "num_labels", None) is not None:
                 filtered = self._mask_per_label(logits, labels)
-                if filtered is None:
-                    continue
-                flogits, flabels = filtered
-                m.update(torch.sigmoid(flogits), flabels)
             else:
                 filtered = self._mask(logits, labels)
-                if filtered is None:
-                    continue
-                flogits, flabels = filtered
-                m.update(torch.sigmoid(flogits), flabels)
+            if filtered is None:
+                continue
+            flogits, flabels = filtered
+            # BCEWithLogitsLoss keeps targets float (soft labels are allowed);
+            # torchmetrics classification metrics want int ground truth.
+            if flabels.dtype.is_floating_point:
+                flabels = flabels.long()
+            m.update(torch.sigmoid(flogits), flabels)
 
     def postprocess_for_metrics(self, logits: torch.Tensor) -> torch.Tensor:
         return torch.sigmoid(logits)
@@ -120,7 +120,7 @@ class MultilabelClassificationTask(Task):
                     channel_names = self.label_names
                 else:
                     channel_names = [str(i) for i in range(n)]
-                for channel, v in zip(channel_names, value):
+                for channel, v in zip(channel_names, value, strict=True):
                     log_fn(
                         name=f"{log_prefix}_{name}_{channel}",
                         value=v,

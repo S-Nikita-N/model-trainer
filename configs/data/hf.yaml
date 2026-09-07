@@ -1,21 +1,24 @@
 # HuggingFace-datasets backed DataModule.
 # Provide paths via CLI:
-#   +data.data_files.train_sets.train=/path/to/train.parquet
-#   +data.data_files.valid_sets.val=/path/to/val.parquet
-#   +data.data_files.test_sets.test=/path/to/test.parquet
+#   +data.train_sets.train=/path/to/train.parquet
+#   +data.valid_sets.val=/path/to/val.parquet
+#   +data.test_sets.test=/path/to/test.parquet
+#
+# The set name is yours to pick and becomes the metric prefix: a val set named
+# `val` logs `val_loss`, one named `ru` logs `val_ru_loss`.
 _target_: model_trainer.datamodules.HFDataModule
 _recursive_: false
 
 tokenizer: null                  # required: HF hub name or local path
 loader: null                     # null = auto-detect from extension
-data_files:
-  train_sets: {}                 # 1..N files, concatenated into a single train split
-  valid_sets: {}                 # 0..N named validation sets
-  test_sets: {}                  # 0..N named test sets
+train_sets: {}                   # 1..N files, concatenated into a single train split
+valid_sets: {}                   # 0..N named validation sets
+test_sets: {}                    # 0..N named test sets
 
 text_column: text
 label_column: label
 label_map: null                  # optional str -> int map
+label_dtype: int64               # float32 for multilabel vectors; null to skip the cast
 
 max_length: 512
 padding: false                   # pad via collator (dynamic padding) by default

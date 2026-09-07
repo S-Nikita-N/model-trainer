@@ -9,18 +9,18 @@ Config schema (all fields optional unless noted)::
 
     _target_: model_trainer.datamodules.HFDataModule
     tokenizer: <hf-hub-name-or-path>           # required
-    data_files:
-      train_sets:                              # 1..N files; concatenated
-        clean: /path/to/train_clean.parquet
-        noisy: /path/to/train_noisy.parquet
-      valid_sets:                              # 0..N named sets
-        in_domain: /path/to/val_in.csv
-        out_of_domain: /path/to/val_ood.csv
-      test_sets:                               # 0..N named sets
-        holdout: /path/to/test.parquet
+    train_sets:                                # 1..N files; concatenated
+      clean: /path/to/train_clean.parquet
+      noisy: /path/to/train_noisy.parquet
+    valid_sets:                                # 0..N named sets
+      in_domain: /path/to/val_in.csv
+      out_of_domain: /path/to/val_ood.csv
+    test_sets:                                 # 0..N named sets
+      holdout: /path/to/test.parquet
     text_column: text
     label_column: label
     label_map: {positive: 1, negative: 0}      # optional, str -> int
+    label_dtype: int64                         # float32 for multilabel vectors; null to skip
     max_length: 512
     batch_size: 32
     loader: null                               # override auto-detection
@@ -34,6 +34,7 @@ import pytorch_lightning as pl
 from datasets import (
     Dataset,
     DatasetDict,
+    List,
     Value,
     load_dataset,
 )
@@ -69,6 +70,9 @@ class HFDataModule(pl.LightningDataModule):
     def __init__(
         self,
         tokenizer: str,
+        train_sets: dict[str, Any] | None = None,
+        valid_sets: dict[str, Any] | None = None,
+        test_sets: dict[str, Any] | None = None,
         data_files: dict[str, Any] | None = None,
         name: str | None = None,
         loader: str | None = None,
@@ -88,20 +92,25 @@ class HFDataModule(pl.LightningDataModule):
         max_test_samples: int | None = None,
         load_from_cache_file: bool = True,
         label_map: dict[str, int] | None = None,
+        label_dtype: str | None = "int64",
         **_: object,
     ) -> None:
         super().__init__()
         if not tokenizer:
             raise ValueError("HFDataModule: `tokenizer` is required.")
-        data_files = dict(data_files or {})
-        train_sets = dict(data_files.get("train_sets") or {})
-        valid_sets = dict(data_files.get("valid_sets") or {})
-        test_sets = dict(data_files.get("test_sets") or {})
+        # Splits live at the top level (``train_sets`` / ``valid_sets`` /
+        # ``test_sets``), matching RAGBenchDataModule. The nested ``data_files``
+        # form is the older spelling and still works; entries given both ways
+        # are merged, with the flat one winning on a key clash.
+        legacy = dict(data_files or {})
+        train_sets = {**(legacy.get("train_sets") or {}), **(train_sets or {})}
+        valid_sets = {**(legacy.get("valid_sets") or {}), **(valid_sets or {})}
+        test_sets = {**(legacy.get("test_sets") or {}), **(test_sets or {})}
 
         if not train_sets and not name:
             raise ValueError(
                 "HFDataModule: provide at least one train file via "
-                "`data_files.train_sets` or a dataset `name`."
+                "`train_sets` or a dataset `name`."
             )
 
         self.name = name
@@ -126,6 +135,7 @@ class HFDataModule(pl.LightningDataModule):
         self.max_val_samples = max_val_samples
         self.max_test_samples = max_test_samples
         self.label_map = dict(label_map) if label_map else {}
+        self.label_dtype = label_dtype
 
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         self.tokenizer.truncation_side = truncation_side
@@ -162,7 +172,10 @@ class HFDataModule(pl.LightningDataModule):
             return_tensors=None,
         )
         if self.label_column in batch:
-            out["labels"] = [self.label_map.get(x, x) for x in batch[self.label_column]]
+            values = batch[self.label_column]
+            # ``label_map`` only makes sense for scalar labels; multilabel rows
+            # arrive as lists, which aren't hashable.
+            out["labels"] = [self.label_map.get(x, x) for x in values] if self.label_map else values
         return out
 
     def _process(self, ds: Dataset, limit: int | None) -> Dataset:
@@ -174,8 +187,16 @@ class HFDataModule(pl.LightningDataModule):
             remove_columns=ds.column_names,
             load_from_cache_file=self.load_from_cache_file,
         )
-        if "labels" in ds.column_names:
-            ds = ds.cast_column("labels", Value("int64"))
+        if "labels" in ds.column_names and self.label_dtype is not None:
+            # Multilabel targets arrive as a list per row; keep the list nesting
+            # and only pin the scalar dtype inside it.
+            feature = ds.features["labels"]
+            target = (
+                List(Value(self.label_dtype))
+                if isinstance(feature, List)
+                else Value(self.label_dtype)
+            )
+            ds = ds.cast_column("labels", target)
         return ds
 
     def setup(self, stage: str | None = None) -> None:

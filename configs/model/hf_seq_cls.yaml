@@ -1,0 +1,11 @@
+# HuggingFace model that already carries a classification head; returns
+# ``{logits}``, so pair it with ``head=identity``. The saved checkpoint stays
+# loadable by a plain ``AutoModelForSequenceClassification.from_pretrained``.
+_target_: model_trainer.backbones.HFSeqClsBackbone
+pretrained_model_name_or_path: /home/jovyan/models/mmBERT-base
+num_labels: 2
+problem_type: null          # trainer computes the loss via task.loss
+config_overrides: {}        # any *Config field, e.g. classifier_dropout / mlp_dropout
+local_files_only: false
+trust_remote_code: false
+input_keys: [input_ids, attention_mask]

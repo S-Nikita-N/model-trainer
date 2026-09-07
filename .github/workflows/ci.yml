@@ -17,31 +17,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry venv
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+        run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: poetry install --no-interaction --with dev
+        run: uv sync --all-extras --group dev --python ${{ matrix.python-version }}
 
       - name: Lint
-        run: poetry run ruff check .
+        run: uv run ruff check .
 
       - name: Format check
-        run: poetry run ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Test
-        run: poetry run pytest -v
+        run: uv run pytest -v
