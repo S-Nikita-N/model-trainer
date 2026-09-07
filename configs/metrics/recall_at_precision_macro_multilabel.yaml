@@ -1,3 +1,5 @@
 _target_: torchmetrics.classification.MultilabelRecallAtFixedPrecision
 num_labels: ${...num_labels}
 min_precision: 0.9
+ignore_index: ${oc.select:...ignore_index,null}
+thresholds: 200

@@ -2,3 +2,9 @@ _target_: torchmetrics.AveragePrecision
 task: multilabel
 num_labels: ${...num_labels}
 average: null
+# ignore_index — чтобы замаскированные позиции не считались негативами.
+ignore_index: ${oc.select:...ignore_index,null}
+# thresholds обязателен, когда канал может оказаться пустым целиком: на точном
+# пути (thresholds=null) torchmetrics падает с IndexError. Пустые каналы
+# отбрасывает задача, см. MultilabelClassificationTask.log_metrics.
+thresholds: 200

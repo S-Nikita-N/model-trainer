@@ -93,6 +93,7 @@ class HFDataModule(pl.LightningDataModule):
         load_from_cache_file: bool = True,
         label_map: dict[str, int] | None = None,
         label_dtype: str | None = "int64",
+        mask_column: str | None = None,
         **_: object,
     ) -> None:
         super().__init__()
@@ -136,6 +137,7 @@ class HFDataModule(pl.LightningDataModule):
         self.max_test_samples = max_test_samples
         self.label_map = dict(label_map) if label_map else {}
         self.label_dtype = label_dtype
+        self.mask_column = mask_column
 
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
         self.tokenizer.truncation_side = truncation_side
@@ -176,6 +178,10 @@ class HFDataModule(pl.LightningDataModule):
             # ``label_map`` only makes sense for scalar labels; multilabel rows
             # arrive as lists, which aren't hashable.
             out["labels"] = [self.label_map.get(x, x) for x in values] if self.label_map else values
+        # Маска неразмеченных каналов: 1 = маскируем. Едет в батч как есть,
+        # применяет её задача (см. MultilabelClassificationTask).
+        if self.mask_column and self.mask_column in batch:
+            out["label_mask"] = batch[self.mask_column]
         return out
 
     def _process(self, ds: Dataset, limit: int | None) -> Dataset:

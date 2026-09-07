@@ -6,6 +6,12 @@ Metric input is fed element-wise (after flattening + ignore-mask) so that a
 over all positions × channels. If you want per-label aggregation, configure
 a ``task="multilabel"`` metric explicitly and override ``update_metrics``
 downstream (TODO: per-label preserved shape).
+
+Partially annotated rows are supported via an optional per-row mask in
+``batch["label_mask"]`` (same shape as labels, ``1`` = mask this channel out).
+A masked channel is "unknown", not a negative: it is folded into
+``ignore_index`` and then dropped from the loss, from the metrics, and from
+logging — a label with no unmasked value in a split is not reported at all.
 """
 
 from __future__ import annotations
@@ -28,11 +34,31 @@ class MultilabelClassificationTask(Task):
         num_labels: int | None = None,
         ignore_index: int | None = -100,
         label_names: list[str] | None = None,
+        mask_key: str = "label_mask",
     ) -> None:
         super().__init__(head=head, loss=loss, label_key=label_key, metrics=metrics)
         self.num_labels = num_labels
         self.ignore_index = ignore_index
         self.label_names = label_names
+        self.mask_key = mask_key
+        # Сколько незамаскированных значений видел каждый канал за сплит.
+        # Ключ — id() группы метрик (у каждого сплита своя). Нужно, потому что
+        # сама метрика пустой канал не отличает: с thresholds=None она падает с
+        # IndexError, с биннингом молча возвращает 0.0.
+        self._seen: dict[int, torch.Tensor] = {}
+
+    def _labels(self, batch: dict[str, Any]) -> torch.Tensor:
+        """Метки с наложенной маской: ``label_mask == 1`` -> ``ignore_index``."""
+        labels = batch[self.label_key]
+        mask = batch.get(self.mask_key)
+        if mask is None or self.ignore_index is None:
+            return labels
+        return labels.masked_fill(mask.bool(), self.ignore_index)
+
+    def forward(self, backbone_output, batch):
+        head_inputs = self._gather_head_inputs(batch)
+        logits = self.head(backbone_output, **head_inputs)
+        return self.compute_loss(logits, self._labels(batch)), {"logits": logits}
 
     def _mask(self, logits: torch.Tensor, labels: torch.Tensor):
         if self.ignore_index is None:
@@ -46,6 +72,10 @@ class MultilabelClassificationTask(Task):
         """Возвращает (K, num_labels) — для multilabel macro метрик.
 
         Оставляет строки, где хотя бы один канал не является паддингом.
+        ``ignore_index`` в отдельных каналах при этом СОХРАНЯЕТСЯ: multilabel
+        метрики принимают форму (N, L) целиком, и выбросить из неё отдельные
+        позиции нельзя. Отсеивает их сама метрика — для этого её конфиг должен
+        передавать тот же ``ignore_index`` (см. configs/metrics/*_multilabel.yaml).
         """
         if self.ignore_index is None:
             nl = logits.shape[-1]
@@ -59,11 +89,34 @@ class MultilabelClassificationTask(Task):
         return flat_logits[keep], flat_labels[keep]
 
     def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        filtered = self._mask_per_label(logits, labels)
-        if filtered is None:
-            return torch.zeros((), device=logits.device, dtype=logits.dtype)
-        flogits, flabels = filtered
-        return self.loss(flogits, flabels.to(flogits.dtype))
+        """BCE по каналам, где метка известна (``ignore_index`` — поэлементный).
+
+        Форма (N, L) сохраняется, а не схлопывается отбором валидных элементов:
+        ``pos_weight`` задаётся на канал и broadcast'ится по последней оси —
+        после flatten он бы поехал. Поэтому считаем поэлементно и усредняем.
+        """
+        if self.ignore_index is None:
+            return self.loss(logits, labels.to(logits.dtype))
+
+        mask = labels != self.ignore_index
+        if mask.all():
+            return self.loss(logits, labels.to(logits.dtype))
+        if not mask.any():
+            # Ноль, но через граф: голая константа оставила бы часть параметров
+            # без градиента, и DDP упал бы на unused parameters.
+            return logits.sum() * 0.0
+
+        target = torch.where(mask, labels, torch.zeros_like(labels)).to(logits.dtype)
+        reduction = getattr(self.loss, "reduction", None)
+        if reduction is None:
+            # Лосс без переключателя reduction — отбираем валидные элементы.
+            return self.loss(logits[mask], labels[mask].to(logits.dtype))
+        try:
+            self.loss.reduction = "none"
+            per_element = self.loss(logits, target)
+        finally:
+            self.loss.reduction = reduction
+        return (per_element * mask).sum() / mask.sum()
 
     def update_metrics(
         self,
@@ -72,7 +125,12 @@ class MultilabelClassificationTask(Task):
         group: nn.ModuleDict,
     ) -> None:
         logits = info["logits"]
-        labels = batch[self.label_key]
+        labels = self._labels(batch)
+        if self.ignore_index is not None:
+            nl = logits.shape[-1]
+            valid = (labels.reshape(-1, nl) != self.ignore_index).sum(0)
+            prev = self._seen.get(id(group))
+            self._seen[id(group)] = valid if prev is None else prev + valid
         for m in group.values():
             if getattr(m, "num_labels", None) is not None:
                 filtered = self._mask_per_label(logits, labels)
@@ -103,14 +161,24 @@ class MultilabelClassificationTask(Task):
         ``<prefix>_<name>_<label>`` per channel. Scalar / tuple returns are
         treated as in the base implementation.
         """
+        seen = self._seen.pop(id(group), None)
         for name, metric in group.items():
             value = metric.compute()
             if isinstance(value, (tuple, list)):
                 value = value[0]
             if isinstance(value, torch.Tensor) and value.numel() > 1:
+                # Канал, у которого за сплит не было ни одного незамаскированного
+                # значения, не логируем вовсе и в macro-среднее не берём: метрика
+                # вернула бы по нему 0.0 и тянула бы среднее вниз.
+                valid = ~torch.isnan(value)
+                if seen is not None and seen.numel() == value.numel():
+                    valid &= seen.to(value.device) > 0
+                if not valid.any():
+                    metric.reset()
+                    continue
                 log_fn(
                     name=f"{log_prefix}_{name}",
-                    value=value.mean(),
+                    value=value[valid].mean(),
                     prog_bar=True,
                     on_epoch=True,
                     sync_dist=True,
@@ -120,7 +188,9 @@ class MultilabelClassificationTask(Task):
                     channel_names = self.label_names
                 else:
                     channel_names = [str(i) for i in range(n)]
-                for channel, v in zip(channel_names, value, strict=True):
+                for channel, v, ok in zip(channel_names, value, valid, strict=True):
+                    if not ok:
+                        continue
                     log_fn(
                         name=f"{log_prefix}_{name}_{channel}",
                         value=v,
