@@ -1,4 +1,4 @@
 _target_: torchmetrics.AUROC
 task: multiclass
-num_classes: ${task.num_classes}
+num_classes: ${...num_classes}
 average: macro

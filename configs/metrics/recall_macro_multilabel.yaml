@@ -1,4 +1,4 @@
 _target_: torchmetrics.Recall
 task: multilabel
-num_labels: ${task.num_labels}
-average: macro
+num_labels: ${...num_labels}
+average: null

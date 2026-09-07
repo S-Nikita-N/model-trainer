@@ -1,0 +1,3 @@
+_target_: torchmetrics.classification.MultilabelRecallAtFixedPrecision
+num_labels: ${...num_labels}
+min_precision: 0.9

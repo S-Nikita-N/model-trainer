@@ -60,7 +60,6 @@ checkpoints/
 !.env.example
 
 # Datasets and large artefacts
-data/
 *.parquet
 *.pkl
 *.pickle

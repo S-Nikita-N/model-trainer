@@ -28,8 +28,8 @@ metrics, task adapter — is swappable from the CLI without touching Python.
 uv run python -m model_trainer.train \
   data=hf \
   data.tokenizer=bert-base-uncased \
-  '+data.data_files.train_sets.train=/path/train.parquet' \
-  '+data.data_files.valid_sets.val=/path/val.parquet' \
+  '+data.train_sets.train=/path/train.parquet' \
+  '+data.valid_sets.val=/path/val.parquet' \
   model=transformers_auto_seq_cls \
   model.pretrained_model_name_or_path=bert-base-uncased \
   '+model.classifier_dropout=0.1' \

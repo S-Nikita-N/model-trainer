@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    "torch>=2.0.0",
+    "torch>=2.0.0,<=2.10.0",
     "pytorch-lightning>=2.6.1,<3.0.0",
     "hydra-core>=1.3.0,<2.0.0",
     "omegaconf>=2.3.0",
@@ -27,15 +27,15 @@ dependencies = [
     "datasets>=2.14.0",
     "torchmetrics>=1.0.0",
     "rich>=13.0.0",
+    "wandb>=0.12.10",
 ]
 
 [project.optional-dependencies]
-wandb = ["wandb>=0.16.0"]
 score = ["pandas>=2.0.0", "scikit-learn>=1.4.0"]
-all = ["wandb>=0.16.0", "pandas>=2.0.0", "scikit-learn>=1.4.0"]
+all = ["pandas>=2.0.0", "scikit-learn>=1.4.0"]
 
 [dependency-groups]
-# Mirrors the `all` extra so a bare `uv sync` keeps wandb/pandas/scikit-learn.
+# Mirrors the `all` extra so a bare `uv sync` keeps pandas/scikit-learn.
 extras = ["model-trainer[all]"]
 dev = [
     "pytest>=8.0",
@@ -44,6 +44,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "ipykernel>=7.2.0",
+    "nbconvert>=7.17.1",
 ]
 
 [tool.uv]

@@ -1,0 +1,17 @@
+# Random integer sequences + random labels. Swap in your own DataModule via
+# `_target_: your.package.YourDataModule` or a sibling YAML.
+# `label_kind` controls what labels look like:
+#   - binary / multiclass: integer labels
+#   - multilabel:          float vector of shape (num_classes,)
+#   - regression:          float scalar
+_target_: model_trainer.datamodules.DummyDataModule
+batch_size: 32
+num_workers: 0
+pin_memory: false
+drop_last: true
+length: 10000
+seq_len: 50
+vocab_size: 30000
+num_classes: 2
+val_length: 2000
+label_kind: binary

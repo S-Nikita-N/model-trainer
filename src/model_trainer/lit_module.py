@@ -1,21 +1,20 @@
-"""Generic Lightning module.
+"""Single generic LightningModule.
 
-Everything task-specific is configurable:
-  - ``backbone`` comes from ``cfg.model`` via ``_target_``.
-  - ``criterion`` comes from ``cfg.loss``.
-  - ``task`` (how to turn logits into ``preds`` / ``probs`` / ... for metrics)
-    comes from ``cfg.task``.
-  - ``metrics`` are a dict of :class:`MetricSpec` objects, each tagged with
-    the input kind it needs.
+Three responsibilities:
+  1. Build ``backbone`` (from ``cfg.model``) and ``task`` (from ``cfg.task``).
+  2. Pipe each batch: ``backbone(**batch[backbone.input_keys]) → task(backbone_output, batch) → (loss, info)``.
+  3. Per-split metric trees, built lazily by ``task.make_metric_group()`` —
+     same call works for a single task (flat dict of metrics) and for
+     ``MultiTask`` (nested dict per child).
 
-Per-dataloader validation / test set names are provided by the DataModule via
-constructor arguments (``val_set_names`` / ``test_set_names``), not by snooping
-into ``cfg.data``. This keeps the module decoupled from any particular
-DataModule schema.
+Task is responsible for everything task-specific: head call, loss compute,
+metric update + log + reset (recursively). LitModule just orchestrates.
 
-Batch contract: each batch is a ``dict`` with ``labels`` and whatever keys
-the backbone's ``forward`` expects (typically ``input_ids`` and optionally
-``attention_mask``).
+DataModule contract: the batch is a flat dict. ``backbone.input_keys`` and
+each ``head.input_keys`` are sliced out of it; the task reads its
+``label_key`` from the same flat dict. Missing keys raise ``KeyError`` —
+synchronization of dataset / backbone / head / loss / metric is the
+developer's responsibility (see brainstorm notes).
 """
 
 from __future__ import annotations
@@ -41,37 +40,34 @@ class LitModule(pl.LightningModule):
         super().__init__()
         self.cfg = cfg
         self.backbone: nn.Module = build_item(cfg.model)
-        self.criterion: nn.Module = build_item(cfg.loss)
-        self.task: Task = build_item(cfg.get("task"), default=ClassificationTask())
+        self.task: nn.Module = build_item(cfg.task)
+
+        if not hasattr(self.backbone, "input_keys"):
+            raise AttributeError(
+                f"Backbone {type(self.backbone).__name__} must define `input_keys: list[str]`."
+            )
+        if not hasattr(self.task, "make_metric_group"):
+            raise AttributeError(
+                f"Task {type(self.task).__name__} must define `make_metric_group()`."
+            )
 
         self.val_set_names = list(val_set_names)
         self.test_set_names = list(test_set_names)
 
-        metrics_cfg = cfg.get("metrics") or {}
-        self.train_metrics: nn.ModuleDict = nn.ModuleDict(build_items_dict(metrics_cfg))
+        self.train_metrics: nn.ModuleDict = self.task.make_metric_group()
         self.val_metrics: nn.ModuleDict = nn.ModuleDict(
-            {name: nn.ModuleDict(build_items_dict(metrics_cfg)) for name in self.val_set_names}
+            {n: self.task.make_metric_group() for n in self.val_set_names}
         )
         self.test_metrics: nn.ModuleDict = nn.ModuleDict(
-            {name: nn.ModuleDict(build_items_dict(metrics_cfg)) for name in self.test_set_names}
+            {n: self.task.make_metric_group() for n in self.test_set_names}
         )
 
         self.log_train_metrics_on_val_start: bool = bool(
             cfg.get("experiment", {}).get("log_train_metrics_on_val", True)
         )
 
-    def forward(self, **inputs: Any) -> Any:
-        return self.backbone(**inputs)
-
     @staticmethod
     def _log_prefix(prefix: str, set_name: str | None) -> str:
-        """Skip redundant ``set_name`` in the log name when it equals ``prefix``.
-
-        With a single validation set conventionally called ``"val"`` we get
-        clean ``val_loss`` / ``val_accuracy`` names. With multiple named sets
-        (e.g. ``in_domain`` + ``out_of_domain``) each metric is prefixed with
-        its set name: ``val_in_domain_accuracy``.
-        """
         if set_name is None or set_name == prefix:
             return prefix
         return f"{prefix}_{set_name}"
@@ -82,15 +78,13 @@ class LitModule(pl.LightningModule):
         prefix: str,
         set_name: str | None = None,
     ) -> torch.Tensor:
-        labels = batch["labels"]
-        inputs = {k: v for k, v in batch.items() if k != "labels"}
+        backbone_inputs = {k: batch[k] for k in self.backbone.input_keys}
+        backbone_output = self.backbone(**backbone_inputs)
+        loss, info = self.task(backbone_output, batch)
 
-        output = self.forward(**inputs)
-        logits = self.task.format_output(output)
-        loss = self.criterion(logits, labels)
-
+        log_prefix = self._log_prefix(prefix, set_name)
         self.log(
-            name=f"{self._log_prefix(prefix, set_name)}_loss",
+            name=f"{log_prefix}_loss",
             value=loss,
             prog_bar=True,
             on_epoch=True,
@@ -98,11 +92,25 @@ class LitModule(pl.LightningModule):
             sync_dist=(prefix != "train"),
             add_dataloader_idx=False,
         )
+        for comp_name, comp in self.task.loss_components(info).items():
+            self.log(
+                name=f"{log_prefix}_loss_{comp_name}",
+                value=comp,
+                on_epoch=True,
+                on_step=(prefix == "train"),
+                sync_dist=(prefix != "train"),
+                add_dataloader_idx=False,
+            )
 
-        self._update_metrics(logits=logits, labels=labels, prefix=prefix, set_name=set_name)
+        group = self._get_metric_group(prefix, set_name)
+        self.task.update_metrics(info, batch, group)
         return loss
 
-    def training_step(self, batch: dict[str, Any], batch_idx: int) -> torch.Tensor:
+    def training_step(
+        self,
+        batch: dict[str, Any],
+        batch_idx: int,
+    ) -> torch.Tensor:
         return self._step(batch, "train")
 
     def validation_step(
@@ -132,36 +140,10 @@ class LitModule(pl.LightningModule):
             return self.test_metrics[set_name]
         raise ValueError(f"Invalid prefix: {prefix!r}")
 
-    def _update_metrics(
-        self,
-        logits: torch.Tensor,
-        labels: torch.Tensor,
-        prefix: str,
-        set_name: str | None = None,
-    ) -> None:
-        metrics = self._get_metric_group(prefix, set_name)
-        for spec in metrics.values():
-            value = self.task.prepare_metric_input(logits, spec.input)
-            target = self.task.prepare_metric_target(labels, spec.input)
-            spec.update(value, target)
-
     def _log_metrics(self, prefix: str, set_name: str | None = None) -> None:
-        metrics = self._get_metric_group(prefix, set_name)
+        group = self._get_metric_group(prefix, set_name)
         log_prefix = self._log_prefix(prefix, set_name)
-
-        for name, spec in metrics.items():
-            value = spec.compute()
-            # Some torchmetrics (e.g. RecallAtFixedPrecision) return (value, threshold).
-            if isinstance(value, (tuple, list)):
-                value = value[0]
-            self.log(
-                name=f"{log_prefix}_{name}",
-                value=value,
-                prog_bar=True,
-                on_epoch=True,
-                sync_dist=True,
-            )
-            spec.reset()
+        self.task.log_metrics(group, log_prefix, self.log)
 
     def _reset_metric_group(self, group: nn.ModuleDict) -> None:
         for entry in group.values():
@@ -215,7 +197,14 @@ class LitModule(pl.LightningModule):
         scheduler = build_item(params, default=None, **extra)
         if scheduler is None:
             return optimizer
-        return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, **settings}}
+            
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                **settings,
+            },
+        }
 
     def _get_total_steps(self) -> int:
         if self.trainer is None:

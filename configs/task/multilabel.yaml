@@ -10,4 +10,5 @@ _recursive_: false
 label_key: labels
 num_labels: 5
 ignore_index: -100
+label_names: null
 metrics: {}

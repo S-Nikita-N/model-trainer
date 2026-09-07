@@ -1,0 +1,34 @@
+# Root config for standalone scoring (`python -m model_trainer.score`).
+# Override any group / field on the CLI the same way as with train.yaml.
+defaults:
+  - _self_
+  - paths: default
+  - model: transformers_auto_seq_cls
+  - task: classification
+  - hydra: default
+
+# Reused by configs/hydra/default.yaml for the run output dir.
+experiment:
+  name: score
+
+checkpoint: ???              # required: path to a Lightning .ckpt
+input_path: ???              # required: table to score (csv / parquet / pickle / json)
+output_path: ???             # required: destination; format inferred from extension
+
+tokenizer:
+  _target_: transformers.AutoTokenizer.from_pretrained
+  pretrained_model_name_or_path: ${model.pretrained_model_name_or_path}
+  local_files_only: ${model.local_files_only}
+
+text_column: text
+score_column: score          # P(class = positive_class) for classification
+pred_column: pred            # argmax for classification, raw value for regression
+probs_column: null           # if set, dump full probability matrix (multiclass / multilabel)
+
+batch_size: 32
+max_length: 512
+positive_class: 1
+device: null                 # null = auto (cuda if available else cpu)
+limit: null                  # debug: score only the first N rows
+input_format: null           # null = auto from extension (e.g. "read_csv" to override)
+output_format: null          # null = auto from extension (e.g. "to_parquet" to override)

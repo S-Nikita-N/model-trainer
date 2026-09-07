@@ -4,7 +4,8 @@
 _target_: model_trainer.heads.PairwiseEvidenceHead
 response_offsets_key: response_fact_offsets
 context_offsets_key: context_fact_offsets
-hidden_dim: 256
+backbone_output_key: hidden_states
+backbone_output_dim: null
+hidden_dim: null
 num_outputs: 2
 dropout: 0.1
-backbone_input_key: hidden_states

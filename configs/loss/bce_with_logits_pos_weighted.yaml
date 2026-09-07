@@ -1,0 +1,5 @@
+_target_: torch.nn.BCEWithLogitsLoss
+reduction: mean
+pos_weight:
+  _target_: torch.tensor
+  data: [1.0]

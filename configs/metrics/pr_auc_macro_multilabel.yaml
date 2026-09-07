@@ -1,4 +1,4 @@
-_target_: torchmetrics.Accuracy
+_target_: torchmetrics.AveragePrecision
 task: multilabel
 num_labels: ${...num_labels}
 average: null

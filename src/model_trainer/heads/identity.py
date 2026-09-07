@@ -15,8 +15,8 @@ from model_trainer.heads.base import Head
 
 
 class IdentityHead(Head):
-    def __init__(self, backbone_input_key: str = "logits") -> None:
-        super().__init__(input_keys=[], backbone_input_key=backbone_input_key)
+    def __init__(self, backbone_output_key: str = "logits") -> None:
+        super().__init__(input_keys=[], backbone_output_key=backbone_output_key)
 
     def forward(self, backbone_output: dict[str, Any], **_: Any) -> torch.Tensor:
-        return backbone_output[self.backbone_input_key]
+        return backbone_output[self.backbone_output_key]
